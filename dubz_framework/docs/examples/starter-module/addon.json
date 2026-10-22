@@ -1,0 +1,6 @@
+{
+  "title": "Acme Starter",
+  "type": "servercontent",
+  "tags": ["roleplay"],
+  "ignore": ["*.psd", "*.blend", ".git/*"]
+}

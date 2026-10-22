@@ -1,0 +1,6 @@
+{
+  "title": "Acme Printers",
+  "type": "servercontent",
+  "tags": ["roleplay"],
+  "ignore": ["*.psd", "*.blend", ".git/*"]
+}
