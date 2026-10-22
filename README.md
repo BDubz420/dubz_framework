@@ -1,6 +1,6 @@
 # Dubz Framework
 
-A small framework for Garry's Mod roleplay addons. It gives every addon the same pieces: a module registry, a settings system with an in-game admin menu, saved editable tables, themes, and a set of ready-made UI controls.
+A framework for Garry's Mod roleplay addons. It gives every addon the same pieces: a module registry, a settings system with an in-game admin menu, saved editable tables, themes, and a set of ready-made UI controls.
 
 Other addons describe their settings once and get an admin menu page, saving, loading and syncing to clients without writing any of it themselves.
 
