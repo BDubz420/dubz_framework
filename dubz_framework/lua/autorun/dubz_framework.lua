@@ -18,7 +18,7 @@ end
 
 DFW = {
     Name = "Dubz Framework",
-    Version = "0.3.0",
+    Version = "0.4.0",
     APIVersion = 1,
     Root = "dubz_framework",
     Ready = false,
@@ -29,7 +29,7 @@ DFW = {
 local LOAD_ORDER = {
     core = {
         "sh_util", "sh_registry", "sh_access", "sh_net", "sh_addons", "sh_packages", "sh_modules", "sh_themes",
-        "sh_config", "sh_bind", "sh_collections", "sh_commands", "sh_selftest",
+        "sh_config", "sh_bind", "sh_collections", "sh_commands", "sh_selftest", "sh_boot",
         "sv_data", "sv_persistence", "sv_network", "sv_collections",
         "cl_network", "cl_collections"
     },
@@ -144,7 +144,7 @@ DFW.Modules.Register({
 })
 
 DFW.Config.Register("dubz_core", {
-    {key = "theme", label = "Theme", type = "choice", default = "liminal", choices = DFW.Themes.GetIds(), public = true, order = 10, group = "Appearance",
+    {key = "theme", label = "Theme", type = "choice", default = DFW.Themes.DefaultId, choices = DFW.Themes.GetIds, public = true, order = 10, group = "Appearance",
         description = "Colour scheme used by every Dubz Framework window and HUD element."},
     {key = "use_custom_accent", label = "Custom Accent", type = "bool", default = false, public = true, order = 20, group = "Appearance",
         description = "Replace the theme's accent colour with the one below."},

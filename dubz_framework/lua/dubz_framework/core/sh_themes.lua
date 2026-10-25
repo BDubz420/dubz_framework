@@ -22,25 +22,30 @@ function DFW.Themes.Register(id, data)
     data.radius = data.radius or {XS = 4, SM = 6, MD = 10, LG = 14, XL = 18}
     data.spacing = data.spacing or {XS = 4, SM = 8, MD = 12, LG = 16, XL = 24}
     themes[id] = data
+    hook.Run("DFW_ThemeRegistered", id)
     return true
 end
 
-function DFW.Themes.Get(id) return themes[id] end
+DFW.Themes.DefaultId = "classic"
+
+local ALIASES = {liminal = "classic"}
+
+function DFW.Themes.Get(id) return themes[id] or themes[ALIASES[id]] end
 
 function DFW.Themes.GetIds()
     local ids = {}
     for id in pairs(themes) do ids[#ids + 1] = id end
     table.sort(ids)
     for index, id in ipairs(ids) do
-        if id == "liminal" then table.remove(ids, index) table.insert(ids, 1, id) break end
+        if id == DFW.Themes.DefaultId then table.remove(ids, index) table.insert(ids, 1, id) break end
     end
     return ids
 end
 
 function DFW.Themes.GetRequiredColors() return table.Copy(REQUIRED_COLORS) end
 
-DFW.Themes.Register("liminal", {
-    name = "Liminal",
+DFW.Themes.Register("classic", {
+    name = "Classic",
     colors = {
         background = c(0, 0, 0, 160), surface = c(0, 0, 0, 120), surfaceAlt = c(255, 255, 255, 10),
         raised = c(255, 255, 255, 24), border = c(255, 255, 255, 45), borderSoft = c(255, 255, 255, 20),

@@ -58,7 +58,7 @@ local function testUtilAndRegistry(run)
 end
 
 local function testThemes(run)
-    run.check("default theme exists", DFW.Themes.Get("liminal") ~= nil)
+    run.check("default theme exists", DFW.Themes.Get(DFW.Themes.DefaultId) ~= nil)
     for _, id in ipairs(DFW.Themes.GetIds()) do
         local theme = DFW.Themes.Get(id)
         local complete = true
@@ -68,7 +68,7 @@ local function testThemes(run)
         run.check("theme '" .. id .. "' defines every colour token", complete)
     end
     local field = DFW.Config.Schema.dubz_core and DFW.Config.Schema.dubz_core.theme
-    run.check("core theme setting lists every theme", field ~= nil and #field.choices == #DFW.Themes.GetIds())
+    run.check("core theme setting lists every theme", field ~= nil and #DFW.Config.GetChoices(field) == #DFW.Themes.GetIds())
 end
 
 local function testModules(run)

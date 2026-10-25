@@ -2,10 +2,11 @@ DFW.UI = DFW.UI or {}
 local UI = DFW.UI
 
 local cache
+local previewId
 
 local function rebuild()
-    local id = DFW.Config.Get("dubz_core", "theme", "liminal")
-    local base = DFW.Themes.Get(id) or DFW.Themes.Get("liminal")
+    local id = previewId or DFW.Config.Get("dubz_core", "theme", DFW.Themes.DefaultId)
+    local base = DFW.Themes.Get(id) or DFW.Themes.Get(DFW.Themes.DefaultId)
 
     local theme = {id = id, name = base.name, radius = base.radius, spacing = base.spacing}
     for key, color in pairs(base.colors) do theme[key] = color end
@@ -22,6 +23,12 @@ end
 
 function UI.GetTheme()
     return cache or rebuild()
+end
+
+function UI.PreviewTheme(id)
+    previewId = id
+    cache = nil
+    hook.Run("DFW_ThemeChanged")
 end
 
 function UI.Color(key, fallback)
@@ -55,6 +62,11 @@ hook.Add("DFW_ConfigChanged", "DFW.UI.ThemeCache", function(moduleId)
         cache = nil
         hook.Run("DFW_ThemeChanged")
     end
+end)
+
+hook.Add("DFW_ThemeRegistered", "DFW.UI.ThemeCache", function()
+    cache = nil
+    hook.Run("DFW_ThemeChanged")
 end)
 
 hook.Run("DFW_ThemeReady", UI.GetTheme())

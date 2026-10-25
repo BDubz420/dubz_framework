@@ -118,7 +118,7 @@ local function buildField(parent, moduleId, field)
 
     elseif field.type == "choice" then
         control = vgui.Create("DFW.Dropdown", row)
-        for _, choice in ipairs(field.choices) do control:AddChoice(tostring(choice), choice) end
+        for _, choice in ipairs(DFW.Config.GetChoices(field)) do control:AddChoice(tostring(choice), choice) end
         control:SelectByData(current, true)
         control.OnSelect = function(_, _, _, data) send(data) end
         row.SetExternal = function(_, value) control:SelectByData(value, true) end
@@ -406,13 +406,44 @@ local function buildCollectionCard(canvas, moduleId, def)
     end
 end
 
+local function buildLauncherCard(canvas, moduleId, launcher)
+    local card = vgui.Create("DFW.Card", canvas)
+    card:Dock(TOP)
+    card:DockMargin(0, 0, 10, 8)
+    card:SetTall(72)
+
+    local title = makeLabel(card, launcher.label, "bodybold", 22)
+    title:SetPos(16, 10)
+    title:SetWide(500)
+
+    local description = makeLabel(card, launcher.description or "", "small", 20)
+    description:SetPos(16, 34)
+    description:SetWide(620)
+
+    local open = vgui.Create("DFW.Button", card)
+    open:SetVariant("primary")
+    open:SetLabel(launcher.button or "Open")
+    open:SetSize(170, 34)
+    open.DoClick = function() launcher.fn(moduleId) end
+
+    card.PerformLayout = function(self, w, h)
+        open:SetPos(w - 186, (h - 34) / 2)
+    end
+end
+
 local function buildModule(canvas, moduleId)
     local fields = DFW.Config.GetFields(moduleId)
     local collections = DFW.Collections.ListFor(moduleId)
+    local launchers = DFW.Modules.Registry[moduleId].launchers or {}
 
-    if #fields == 0 and #collections == 0 then
+    if #fields == 0 and #collections == 0 and #launchers == 0 then
         emptyState(canvas, "This module has no configurable values.")
         return
+    end
+
+    if #launchers > 0 then
+        addGroupHeader(canvas, "Tools")
+        for _, launcher in ipairs(launchers) do buildLauncherCard(canvas, moduleId, launcher) end
     end
 
     if #collections > 0 then
@@ -659,6 +690,14 @@ function Menu.Open()
         local query = string.Trim(self:GetValue())
         if query == "" then showPage("overview") else showPage("search", query) end
     end
+
+    local support = vgui.Create("DFW.Button", sidebar)
+    support:Dock(BOTTOM)
+    support:SetTall(32)
+    support:DockMargin(0, 8, 6, 0)
+    support:SetVariant("ghost")
+    support:SetLabel("Support on Ko-fi")
+    support.DoClick = function() gui.OpenURL("https://ko-fi.com/bdubz420") end
 
     local navScroll = vgui.Create("DFW.ScrollPanel", sidebar)
     navScroll:Dock(FILL)

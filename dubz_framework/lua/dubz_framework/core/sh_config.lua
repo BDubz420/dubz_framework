@@ -6,6 +6,11 @@ DFW.Config.Waiting = DFW.Config.Waiting or {}
 local DEFAULT_MAX_STRING = 256
 local validTypes = {bool = true, string = true, number = true, choice = true, color = true}
 
+function DFW.Config.GetChoices(field)
+    if isfunction(field.choices) then return field.choices() or {} end
+    return field.choices or {}
+end
+
 local function validate(field, value)
     if field.type == "bool" then
         return isbool(value), value
@@ -26,6 +31,8 @@ local function validate(field, value)
     end
 
     if field.type == "choice" then
+        if isfunction(field.choices) then return DFW.Util.IsIdentifier(value), value end
+
         for _, choice in ipairs(field.choices or {}) do
             if value == choice then return true, value end
         end
@@ -61,7 +68,7 @@ function DFW.Config.Register(moduleId, fields)
         if not istable(field) or not DFW.Util.IsIdentifier(field.key) or not validTypes[field.type] or normalized[field.key] then
             return false, "invalid_field"
         end
-        if field.type == "choice" and (not istable(field.choices) or #field.choices == 0) then
+        if field.type == "choice" and not isfunction(field.choices) and (not istable(field.choices) or #field.choices == 0) then
             return false, "invalid_choices:" .. field.key
         end
         if field.type == "number" and field.min and field.max and field.min > field.max then
