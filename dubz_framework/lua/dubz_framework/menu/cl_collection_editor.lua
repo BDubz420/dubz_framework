@@ -1,3 +1,12 @@
+-- Table editor for collections (see core/sh_47_collections.lua): add, remove, duplicate, reorder and edit rows with
+-- one control per column, then Save. Opened from a module's page in the config menu and docked beside it.
+--
+-- Collection options the editor understands (all optional):
+--   preview = {kind = "chip", text = "name", color = "color"}   a live preview of each row (the rank / colour as it
+--                                                                shows in game), or {kind = "model", model = "model"}
+--   column.suggest = "weapons" | "entities" | "usergroups" | "jobs" | <provider name> | function() return {..} end
+--                                                                typing in that column offers matching names
+--   Suggestion providers live in DFW.Collections.Suggest[name] (an addon can add its own).
 DFW.CollectionEditor = DFW.CollectionEditor or {}
 local Editor = DFW.CollectionEditor
 local UI = DFW.UI
@@ -8,6 +17,9 @@ local frame
 local ACTIONS_W = 3 * 28 + 8
 local PREVIEW_W = 150
 
+---------------------------------------------------------------------------
+-- Suggestion providers: lists of names to autocomplete from
+---------------------------------------------------------------------------
 Collections.Suggest = Collections.Suggest or {}
 local Suggest = Collections.Suggest
 
@@ -56,6 +68,7 @@ local function suggestions(col)
     return provider and provider() or {}
 end
 
+-- One popup shared by every suggesting field: shows up to 8 matches under the field being typed in
 local suggestPanel
 
 local function closeSuggestions()
@@ -86,7 +99,7 @@ local function showSuggestions(entry, col, onPick)
     suggestPanel:SetSize(width, #matches * rowH + 8)
     suggestPanel:SetPos(math.min(x, ScrW() - width - 8), math.min(y, ScrH() - suggestPanel:GetTall() - 8))
     suggestPanel:MakePopup()
-    suggestPanel:SetKeyboardInputEnabled(false)
+    suggestPanel:SetKeyboardInputEnabled(false)   -- typing keeps going to the field
     suggestPanel.Paint = function(_, w, h)
         local theme = UI.GetTheme()
         draw.RoundedBox(6, 0, 0, w, h, theme.border)
@@ -109,6 +122,9 @@ local function showSuggestions(entry, col, onPick)
     UI.AttachPopup(suggestPanel, entry)
 end
 
+---------------------------------------------------------------------------
+-- Helpers
+---------------------------------------------------------------------------
 local function explain(reason)
     reason = tostring(reason or "")
     local base, detail = string.match(reason, "^([^:]+):?(.*)$")
@@ -182,6 +198,7 @@ local function rowMatches(def, row, query)
     return false
 end
 
+-- Draws the live preview of a row (the left part of each row)
 local function drawPreview(def, row, w, h)
     local spec = def.preview
     if not spec then return end
@@ -196,6 +213,9 @@ local function drawPreview(def, row, w, h)
     end
 end
 
+---------------------------------------------------------------------------
+-- The window
+---------------------------------------------------------------------------
 function Editor.Open(moduleId, collId)
     local def = Collections.GetDefinition(moduleId, collId)
     if not def then return end
@@ -206,6 +226,7 @@ function Editor.Open(moduleId, collId)
     local rowPanels = {}
     local previewW = def.preview and PREVIEW_W or 0
 
+    -- Sized so it fits beside the config menu (each gets half the screen)
     frame = UI.CreateFrame("Edit " .. def.label, math.min(1040, math.floor(ScrW() * 0.5) - 30), 720, "navigation/settings")
     frame:SetSubtitle(def.description and string.sub(def.description, 1, 90) or "Changes apply when you press Save")
     frame.OnRemove = closeSuggestions
@@ -213,6 +234,7 @@ function Editor.Open(moduleId, collId)
 
     local content = frame:GetContent()
 
+    -- Top: filter, sort, paste, row count
     local top = vgui.Create("Panel", content)
     top:Dock(TOP)
     top:SetTall(34)
@@ -241,6 +263,7 @@ function Editor.Open(moduleId, collId)
     filter:DockMargin(0, 3, 8, 3)
     filter:SetPlaceholder("Filter rows...")
 
+    -- Bottom: actions
     local bottom = vgui.Create("Panel", content)
     bottom:Dock(BOTTOM)
     bottom:SetTall(42)
@@ -261,6 +284,7 @@ function Editor.Open(moduleId, collId)
     local add = bottomButton("+ Add row", "default", LEFT, 120)
     local reset = bottomButton("Reset to default", "danger", LEFT, 150)
 
+    -- Column headers
     local header = vgui.Create("Panel", content)
     header:Dock(TOP)
     header:SetTall(24)
@@ -309,6 +333,7 @@ function Editor.Open(moduleId, collId)
         button:SetTooltip(tip)
         button.DoClick = onClick
 
+        -- Hovering an action lights its row so it is obvious which entry it will change (red for delete)
         local baseEntered = button.OnCursorEntered
         button.OnCursorEntered = function(self)
             parent.Hot = hoverKind
@@ -334,6 +359,7 @@ function Editor.Open(moduleId, collId)
                 local theme = UI.GetTheme()
                 draw.RoundedBox(4, 0, 0, w, h, theme.slot)
 
+                -- Hover tint; the delete button turns the whole row red, the other actions light it up
                 if self.Hot == "delete" then
                     draw.RoundedBox(4, 0, 0, w, h, UI.WithAlpha(theme.danger, 55))
                     surface.SetDrawColor(theme.danger.r, theme.danger.g, theme.danger.b, 170)
@@ -348,6 +374,7 @@ function Editor.Open(moduleId, collId)
             local controls = {}
             for _, col in ipairs(def.columns) do controls[#controls + 1] = {col = col, ctl = control(panel, col, row)} end
 
+            -- Rows can be dragged, so a row's position is looked up when it is needed
             local function position()
                 for i, other in ipairs(rowPanels) do
                     if other == panel then return i end
@@ -355,6 +382,7 @@ function Editor.Open(moduleId, collId)
                 return index
             end
 
+            -- Drag handle: hold it and move the mouse; the row jumps between the other rows and lands where you let go
             local grip = vgui.Create("DButton", panel)
             grip:SetText("")
             grip:SetCursor("sizeall")
@@ -389,6 +417,7 @@ function Editor.Open(moduleId, collId)
                 local canvas = scroll:GetCanvas()
                 local _, my = canvas:CursorPos()
 
+                -- Where would the row go? Before the first other row whose middle is below the cursor.
                 local current = position()
                 local target = #rowPanels
 
@@ -405,10 +434,12 @@ function Editor.Open(moduleId, collId)
                     table.insert(rowPanels, target, moved)
                     table.insert(work, target, movedRow)
 
+                    -- Docked rows are laid out in child order, so moving the panel moves the row
                     if target < #rowPanels then panel:MoveToBefore(rowPanels[target + 1]) else panel:MoveToFront() end
                     canvas:InvalidateLayout(true)
                 end
 
+                -- Near the top or bottom edge: scroll along
                 local _, sy = scroll:CursorPos()
                 local bar = scroll:GetVBar()
 
@@ -448,6 +479,7 @@ function Editor.Open(moduleId, collId)
                 end
             end
 
+            -- Model preview: a small icon for rows that name a model
             if def.preview and def.preview.kind == "model" then
                 local icon = vgui.Create("DModelPanel", panel)
                 icon:SetPos(4, 2)
@@ -493,6 +525,8 @@ function Editor.Open(moduleId, collId)
         rebuild()
     end
 
+    -- Paste list: one row per line. The line fills the first text column; "a=b" or "a, b" or a tab fills the first
+    -- two columns (a weapon and its chance, an item and its price ...)
     paste.DoClick = function()
         local box = UI.CreateFrame("Paste list", 520, 380, "navigation/settings", {compact = true})
         local boxContent = box:GetContent()
@@ -570,6 +604,7 @@ function Editor.Open(moduleId, collId)
 
     rebuild()
 
+    -- The server answers every save: close on success, explain on failure
     local hookId = "DFW.CollectionEditor." .. moduleId .. "." .. collId
     hook.Add("DFW_CollectionResult", hookId, function(ok, resultModule, resultColl, reason)
         if resultModule ~= moduleId or resultColl ~= collId then return end

@@ -1,3 +1,6 @@
+-- Dubz Framework bootstrap. Systems live under lua/dubz_framework/{core,ui,menu}.
+-- Package manifests survive Lua auto-refresh, so independent module addons can
+-- be reloaded without relying on Garry's Mod addon autorun order.
 local retainedPackages = {}
 
 if DFW then
@@ -18,7 +21,7 @@ end
 
 DFW = {
     Name = "Dubz Framework",
-    Version = "0.4.0",
+    Version = "0.3.0",
     APIVersion = 1,
     Root = "dubz_framework",
     Ready = false,
@@ -26,38 +29,56 @@ DFW = {
     PendingPackages = retainedPackages
 }
 
-local LOAD_ORDER = {
-    core = {
-        "sh_util", "sh_registry", "sh_access", "sh_net", "sh_addons", "sh_packages", "sh_modules", "sh_themes",
-        "sh_config", "sh_bind", "sh_collections", "sh_commands", "sh_selftest", "sh_boot",
-        "sv_data", "sv_persistence", "sv_network", "sv_collections",
-        "cl_network", "cl_collections"
-    },
-    ui = {
-        "cl_fonts", "cl_theme", "cl_anim", "cl_draw", "cl_icons", "cl_frame", "cl_button", "cl_inputs",
-        "cl_popups", "cl_layout", "cl_overlays", "cl_game", "cl_items"
-    },
-    menu = {
-        "cl_collection_editor", "cl_collection_picker", "cl_config_menu", "cl_selftest_ui", "cl_ui_demo"
-    }
+-- Every framework file. Checked at boot so an incomplete upload or install is
+-- reported by name instead of surfacing later as a confusing nil error.
+local EXPECTED_FILES = {
+    "dubz_framework/core/cl_50_network.lua",
+    "dubz_framework/core/sh_00_util.lua",
+    "dubz_framework/core/sh_05_registry.lua",
+    "dubz_framework/core/sh_10_access.lua",
+    "dubz_framework/core/sh_15_net.lua",
+    "dubz_framework/core/sh_20_addons.lua",
+    "dubz_framework/core/sh_25_packages.lua",
+    "dubz_framework/core/sh_30_modules.lua",
+    "dubz_framework/core/sh_35_themes.lua",
+    "dubz_framework/core/sh_40_config.lua",
+    "dubz_framework/core/sh_45_bind.lua",
+    "dubz_framework/core/sh_47_collections.lua",
+    "dubz_framework/core/sv_52_collections.lua",
+    "dubz_framework/core/cl_52_collections.lua",
+    "dubz_framework/core/sh_60_commands.lua",
+    "dubz_framework/core/sh_90_selftest.lua",
+    "dubz_framework/core/sv_35_data.lua",
+    "dubz_framework/core/sv_41_persistence.lua",
+    "dubz_framework/core/sv_50_network.lua",
+    "dubz_framework/menu/cl_collection_editor.lua",
+    "dubz_framework/menu/cl_collection_picker.lua",
+    "dubz_framework/menu/cl_config_menu.lua",
+    "dubz_framework/menu/cl_selftest_ui.lua",
+    "dubz_framework/menu/cl_ui_demo.lua",
+    "dubz_framework/ui/cl_00_fonts.lua",
+    "dubz_framework/ui/cl_05_theme.lua",
+    "dubz_framework/ui/cl_10_anim.lua",
+    "dubz_framework/ui/cl_15_draw.lua",
+    "dubz_framework/ui/cl_20_icons.lua",
+    "dubz_framework/ui/cl_30_frame.lua",
+    "dubz_framework/ui/cl_31_button.lua",
+    "dubz_framework/ui/cl_32_inputs.lua",
+    "dubz_framework/ui/cl_33_popups.lua",
+    "dubz_framework/ui/cl_34_layout.lua",
+    "dubz_framework/ui/cl_35_overlays.lua",
+    "dubz_framework/ui/cl_36_game.lua",
+    "dubz_framework/ui/cl_37_items.lua"
 }
-
-local function luaPath(directory, name)
-    return DFW.Root .. "/" .. directory .. "/" .. name .. ".lua"
-end
 
 local function reportMissingFiles()
     local missing = {}
-    for directory, names in pairs(LOAD_ORDER) do
-        for _, name in ipairs(names) do
-            local path = luaPath(directory, name)
-            if not file.Exists(path, "LUA") then missing[#missing + 1] = path end
-        end
+    for _, luaPath in ipairs(EXPECTED_FILES) do
+        if not file.Exists(luaPath, "LUA") then missing[#missing + 1] = luaPath end
     end
-    table.sort(missing)
     if #missing > 0 then
         MsgC(Color(232, 84, 84), "[Dubz Framework] " .. #missing .. " framework file(s) are missing from the " .. (SERVER and "server" or "client") .. " - the upload or install is incomplete:\n")
-        for _, path in ipairs(missing) do MsgC(Color(232, 84, 84), "[Dubz Framework]   missing: " .. path .. "\n") end
+        for _, luaPath in ipairs(missing) do MsgC(Color(232, 84, 84), "[Dubz Framework]   missing: " .. luaPath .. "\n") end
     end
     return #missing
 end
@@ -66,33 +87,53 @@ local function bootPrint(message)
     MsgC(Color(190, 86, 82), "[Dubz Framework] ", color_white, message .. "\n")
 end
 
-local function realmPrefix(name)
-    return string.sub(name, 1, 3)
+local function collect(path, output)
+    local files, directories = file.Find(path .. "/*", "LUA")
+    table.sort(files)
+    table.sort(directories)
+
+    for _, name in ipairs(files) do
+        if string.EndsWith(name, ".lua") then
+            output[#output + 1] = path .. "/" .. name
+        end
+    end
+
+    for _, name in ipairs(directories) do
+        collect(path .. "/" .. name, output)
+    end
 end
 
-local function loadDirectory(directory)
-    local names = LOAD_ORDER[directory]
+local function realmPrefix(luaPath)
+    return string.sub(string.GetFileFromFilename(luaPath), 1, 3)
+end
+
+-- Realm files load shared first, then the current realm, each in name order.
+local function loadTree(path)
+    local files = {}
+    collect(path, files)
+    table.sort(files)
 
     if SERVER then
-        for _, name in ipairs(names) do
-            local prefix = realmPrefix(name)
-            if prefix == "sh_" or prefix == "cl_" then AddCSLuaFile(luaPath(directory, name)) end
+        for _, luaPath in ipairs(files) do
+            local prefix = realmPrefix(luaPath)
+            if prefix == "sh_" or prefix == "cl_" then AddCSLuaFile(luaPath) end
         end
     end
 
     for _, wantedPrefix in ipairs({"sh_", SERVER and "sv_" or "cl_"}) do
-        for _, name in ipairs(names) do
-            if realmPrefix(name) == wantedPrefix then
-                local path = luaPath(directory, name)
-                local ok, err = xpcall(function() include(path) end, function(e) return tostring(e) end)
+        for _, luaPath in ipairs(files) do
+            if realmPrefix(luaPath) == wantedPrefix then
+                -- Wrapped in a closure so include() resolves paths from this file, not from pcall.
+                local ok, err = xpcall(function() include(luaPath) end, function(e) return tostring(e) end)
                 if not ok then
-                    MsgC(Color(232, 84, 84), "[Dubz Framework] ERROR loading " .. path .. ": " .. tostring(err) .. "\n")
+                    MsgC(Color(232, 84, 84), "[Dubz Framework] ERROR loading " .. luaPath .. ": " .. tostring(err) .. "\n")
                 end
             end
         end
     end
 end
 
+-- Icons are plain client resources; send them so clients never see the error texture.
 local function addResourceTree(path)
     local total = 0
     local files, directories = file.Find(path .. "/*", "GAME")
@@ -111,8 +152,9 @@ end
 
 bootPrint("Booting v" .. DFW.Version .. " (API " .. DFW.APIVersion .. ")")
 reportMissingFiles()
-loadDirectory("core")
+loadTree(DFW.Root .. "/core")
 
+-- Core must be fully loaded before anything else runs; stop with a clear message otherwise.
 local coreNamespaces = {"Util", "Registry", "Access", "Net", "Addons", "Packages", "Modules", "Themes", "Config"}
 for _, name in ipairs(coreNamespaces) do
     if DFW[name] == nil then
@@ -161,14 +203,17 @@ if SERVER then
     bootPrint("Queued " .. iconCount .. " icon resources for clients")
 end
 
-loadDirectory("ui")
-loadDirectory("menu")
+-- UI first, so package client files can use DFW.UI the moment they load.
+loadTree(DFW.Root .. "/ui")
+loadTree(DFW.Root .. "/menu")
 DFW.Packages.DrainPending()
 
 DFW.Ready = true
 DFW.Modules.StartAll()
 hook.Run("DFW_FrameworkLoaded", DFW.Version, DFW.APIVersion)
 
+-- Autorun files from other addons may still run later in this frame. Resolve
+-- missing package dependencies only after every addon has had a chance to submit.
 timer.Simple(0, function()
     if DFW and DFW.Packages then DFW.Packages.FinalizePending() end
 end)

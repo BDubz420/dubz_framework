@@ -1,3 +1,7 @@
+-- Browser for collections that are lists of entity / weapon classes (the pocket blacklist, drop lists ...): search
+-- every installed entity and weapon, click one to add it to the list (or click again to take it off), then Save.
+-- A collection opts in with   picker = {column = "class", provider = "entities"}   and its card in the config menu
+-- gets a "Browse" button next to "Edit". Opens docked beside the config menu like the table editor.
 DFW.CollectionPicker = DFW.CollectionPicker or {}
 local Picker = DFW.CollectionPicker
 local UI = DFW.UI
@@ -5,6 +9,7 @@ local Collections = DFW.Collections
 
 local frame
 
+-- Candidate lists: {id = class, label = display name, kind = "entity" | "weapon"}
 Collections.Browse = Collections.Browse or {}
 
 Collections.Browse.entities = function()
@@ -52,8 +57,9 @@ function Picker.Open(moduleId, collId)
 
     if IsValid(frame) then frame:Remove() end
 
+    -- The working selection: lowercase class -> true. Starts from the saved rows.
     local chosen = {}
-    local extras = {}
+    local extras = {}   -- rows we keep as they are (other columns' values) for classes that stay chosen
     for _, row in ipairs(Collections.Get(moduleId, collId)) do
         local key = string.lower(tostring(row[column]))
         chosen[key] = true
@@ -66,6 +72,7 @@ function Picker.Open(moduleId, collId)
 
     local content = frame:GetContent()
 
+    -- Top: search, kind filter, counts
     local top = vgui.Create("Panel", content)
     top:Dock(TOP)
     top:SetTall(34)
@@ -86,6 +93,7 @@ function Picker.Open(moduleId, collId)
     status:SetTall(20)
     status:SetStyle("small")
 
+    -- Bottom: Save / Cancel
     local bottom = vgui.Create("Panel", content)
     bottom:Dock(BOTTOM)
     bottom:SetTall(42)
@@ -123,6 +131,7 @@ function Picker.Open(moduleId, collId)
         local query = string.lower(string.Trim(search:GetValue()))
         local shown, matches = 0, 0
 
+        -- Entries already on the list come first so you can see (and remove) them
         local ordered = {}
         for _, item in ipairs(candidates) do
             if chosen[string.lower(item.id)] then ordered[#ordered + 1] = item end
@@ -184,6 +193,7 @@ function Picker.Open(moduleId, collId)
         tabs:AddTab("weapon", "Weapons")
     end
 
+    -- Searching waits a moment after you stop typing so a long list stays smooth
     search.OnChange = function()
         timer.Create("DFW.Picker.Search", 0.15, 1, function()
             if IsValid(frame) then rebuild() end
@@ -193,6 +203,7 @@ function Picker.Open(moduleId, collId)
     save.DoClick = function()
         local rows = {}
 
+        -- Keep the existing rows (and their other columns) that are still chosen, in order; then the new ones
         local kept = {}
         for _, row in ipairs(Collections.Get(moduleId, collId)) do
             local key = string.lower(tostring(row[column]))
@@ -205,6 +216,7 @@ function Picker.Open(moduleId, collId)
                 local row = Collections.NewRow(moduleId, collId)
                 row[column] = item.id
 
+                -- A collection can fill in the rest of a new row itself (id and name from a model path ...)
                 if def.picker.fill then
                     local taken = {}
                     for _, other in ipairs(rows) do taken[tostring(other[def.idKey or "id"])] = true end
@@ -215,6 +227,7 @@ function Picker.Open(moduleId, collId)
             end
         end
 
+        -- Classes typed into the table by hand that aren't installed here are still chosen: keep them
         for key in pairs(chosen) do
             if not kept[key] and extras[key] then rows[#rows + 1] = extras[key] kept[key] = true end
         end

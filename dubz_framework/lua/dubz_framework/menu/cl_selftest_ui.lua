@@ -1,3 +1,6 @@
+-- Client-only self-test group, run by `dfw_selftest_cl` after the shared tests.
+-- Creates every registered control inside a hidden parent to prove each one
+-- builds and paints without errors, then removes it again.
 local controls = {
     "DFW.Frame", "DFW.Button", "DFW.TextEntry", "DFW.Toggle", "DFW.Checkbox", "DFW.Slider",
     "DFW.Dropdown", "DFW.ColorButton", "DFW.ScrollPanel", "DFW.Card", "DFW.Label",

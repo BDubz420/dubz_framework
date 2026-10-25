@@ -1,3 +1,5 @@
+-- Master configuration menu. Entirely generated from registered schemas and the
+-- module registry: gameplay modules never need to write their own settings UI.
 DFW.ConfigMenu = DFW.ConfigMenu or {}
 local Menu = DFW.ConfigMenu
 local UI = DFW.UI
@@ -12,6 +14,9 @@ local stateKinds = {
     started = "success", disabled = "muted", failed = "danger", waiting = "warning", registered = "info"
 }
 
+---------------------------------------------------------------------------
+-- Helpers
+---------------------------------------------------------------------------
 local function canOpen()
     local ply = LocalPlayer()
     return IsValid(ply) and DFW.Access.CanConfigure(ply)
@@ -34,6 +39,7 @@ local function moduleDisplayName(moduleId)
     return module and module.name or moduleId
 end
 
+-- Modules that declare configuration, sorted by display name.
 local function configurableModules()
     local list = {}
     for moduleId in pairs(DFW.Config.Schema) do
@@ -41,6 +47,7 @@ local function configurableModules()
             list[#list + 1] = moduleId
         end
     end
+    -- Modules that only have collections (editable tables) are listed too
     for moduleId in pairs(DFW.Collections.Defs) do
         if DFW.Modules.Registry[moduleId] and not table.HasValue(list, moduleId) then list[#list + 1] = moduleId end
     end
@@ -72,6 +79,9 @@ local function explain(reason)
     return reasonText[reason] or reason
 end
 
+---------------------------------------------------------------------------
+-- Config field row
+---------------------------------------------------------------------------
 local controlWidths = {bool = 44, choice = 220, color = 150, string = 240, number = 260}
 
 local function buildField(parent, moduleId, field)
@@ -222,6 +232,9 @@ local function emptyState(canvas, text)
     label:SetWide(600)
 end
 
+---------------------------------------------------------------------------
+-- Pages
+---------------------------------------------------------------------------
 local function statRow(parent, label, value, kind)
     local row = vgui.Create("Panel", parent)
     row:Dock(TOP)
@@ -347,6 +360,7 @@ local function buildModules(canvas)
     end
 end
 
+-- A card for one editable table (titles, groups, loot ...) with an Edit button
 local function buildCollectionCard(canvas, moduleId, def)
     local card = vgui.Create("DFW.Card", canvas)
     card:Dock(TOP)
@@ -374,6 +388,7 @@ local function buildCollectionCard(canvas, moduleId, def)
     edit:SetSize(170, 34)
     edit.DoClick = function() DFW.CollectionEditor.Open(moduleId, def.id) end
 
+    -- Collections that are lists of entity / weapon classes also get a searchable browser
     local browse
     if def.picker and DFW.CollectionPicker then
         browse = vgui.Create("DFW.Button", card)
@@ -384,6 +399,7 @@ local function buildCollectionCard(canvas, moduleId, def)
         browse.DoClick = function() DFW.CollectionPicker.Open(moduleId, def.id) end
     end
 
+    -- Extra buttons a collection adds to its card (def.actions = {{label =, fn =, primary =}, ...})
     local extra = {}
     for _, action in ipairs(def.actions or {}) do
         local button = vgui.Create("DFW.Button", card)
@@ -406,44 +422,13 @@ local function buildCollectionCard(canvas, moduleId, def)
     end
 end
 
-local function buildLauncherCard(canvas, moduleId, launcher)
-    local card = vgui.Create("DFW.Card", canvas)
-    card:Dock(TOP)
-    card:DockMargin(0, 0, 10, 8)
-    card:SetTall(72)
-
-    local title = makeLabel(card, launcher.label, "bodybold", 22)
-    title:SetPos(16, 10)
-    title:SetWide(500)
-
-    local description = makeLabel(card, launcher.description or "", "small", 20)
-    description:SetPos(16, 34)
-    description:SetWide(620)
-
-    local open = vgui.Create("DFW.Button", card)
-    open:SetVariant("primary")
-    open:SetLabel(launcher.button or "Open")
-    open:SetSize(170, 34)
-    open.DoClick = function() launcher.fn(moduleId) end
-
-    card.PerformLayout = function(self, w, h)
-        open:SetPos(w - 186, (h - 34) / 2)
-    end
-end
-
 local function buildModule(canvas, moduleId)
     local fields = DFW.Config.GetFields(moduleId)
     local collections = DFW.Collections.ListFor(moduleId)
-    local launchers = DFW.Modules.Registry[moduleId].launchers or {}
 
-    if #fields == 0 and #collections == 0 and #launchers == 0 then
+    if #fields == 0 and #collections == 0 then
         emptyState(canvas, "This module has no configurable values.")
         return
-    end
-
-    if #launchers > 0 then
-        addGroupHeader(canvas, "Tools")
-        for _, launcher in ipairs(launchers) do buildLauncherCard(canvas, moduleId, launcher) end
     end
 
     if #collections > 0 then
@@ -489,6 +474,9 @@ local function buildSearch(canvas, query)
     if shown == 0 then emptyState(canvas, "No settings match \"" .. query .. "\".") end
 end
 
+---------------------------------------------------------------------------
+-- Navigation
+---------------------------------------------------------------------------
 local function setHeader(title, subtitle, moduleId)
     state.headerTitle = title
     state.headerSubtitle = subtitle
@@ -569,6 +557,9 @@ local function buildNavigation()
     end
 end
 
+---------------------------------------------------------------------------
+-- Live updates
+---------------------------------------------------------------------------
 local function installHooks()
     hook.Add("DFW_ConfigChanged", HOOK_ID, function(moduleId, key, value)
         local row = state.rows and state.rows[rowKey(moduleId, key)]
@@ -601,6 +592,9 @@ local function removeHooks()
     end
 end
 
+---------------------------------------------------------------------------
+-- Window
+---------------------------------------------------------------------------
 function Menu.GetFrame() return frame end
 function Menu.GetPage() return state.page end
 function Menu.GetRows() return state.rows or {} end
@@ -610,6 +604,11 @@ function Menu.Close()
     if IsValid(frame) then frame:Close() end
 end
 
+---------------------------------------------------------------------------
+-- Side-by-side windows: when the config menu opens another window (a table editor), the config menu glides to the
+-- middle of the left half of the screen and the new window to the middle of the right half. Whichever closes,
+-- the one that is left glides back to the centre.
+---------------------------------------------------------------------------
 local sides = {}
 local SLIDE_TIME = 0.4
 
@@ -639,9 +638,11 @@ local function relayout()
     end
 end
 
+-- Call right after creating a window that should sit beside the config menu
 function Menu.AttachSide(side)
     if not IsValid(side) then return end
 
+    -- The window starts a little to the right of where it will rest, so it slides in
     side:SetPos(math.min(ScrW() - side:GetWide() - 10, ScrW() * 0.75 - side:GetWide() / 2) + 90, (ScrH() - side:GetTall()) / 2)
     sides[#sides + 1] = side
 
@@ -691,14 +692,6 @@ function Menu.Open()
         if query == "" then showPage("overview") else showPage("search", query) end
     end
 
-    local support = vgui.Create("DFW.Button", sidebar)
-    support:Dock(BOTTOM)
-    support:SetTall(32)
-    support:DockMargin(0, 8, 6, 0)
-    support:SetVariant("ghost")
-    support:SetLabel("Support on Ko-fi")
-    support.DoClick = function() gui.OpenURL("https://ko-fi.com/bdubz420") end
-
     local navScroll = vgui.Create("DFW.ScrollPanel", sidebar)
     navScroll:Dock(FILL)
     state.navCanvas = navScroll:GetCanvas()
@@ -744,6 +737,7 @@ end
 concommand.Add("dfw_config_menu_local", Menu.Open)
 hook.Add("DFW_OpenConfigMenu", "DFW.ConfigMenu.Open", Menu.Open)
 
+-- New schemas (a module installed while the menu is open) show up without reopening.
 hook.Add("DFW_ConfigRegistered", "DFW.ConfigMenu.Refresh", function()
     if IsValid(frame) and state.navCanvas then buildNavigation() end
 end)
