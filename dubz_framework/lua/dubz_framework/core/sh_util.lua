@@ -24,6 +24,9 @@ end
 
 function Util.Warn(message)
     if Util.Muted then return end
+
+    if DFW.BootWarnings and not DFW.BootReported then DFW.BootWarnings[#DFW.BootWarnings + 1] = tostring(message) end
+
     MsgC(warnColor, "[Dubz Framework] WARNING: ", color_white, tostring(message) .. "\n")
 end
 

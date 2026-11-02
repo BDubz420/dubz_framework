@@ -150,15 +150,21 @@ function DFW.Modules.RequestToggle(id, enabled)
     enqueue({kind = "toggle", module = id, enabled = enabled == true})
 end
 
-hook.Add("InitPostEntity", "DFW.Config.RequestPublic", function()
+local function requestPublic()
+    if util.NetworkStringToID(Net.Name("Config.RequestPublic")) == 0 then
+        DFW.Util.Warn("The server did not announce the framework's network messages: it is not running the framework, or its framework files are incomplete.")
+        return
+    end
+
     Net.Start("Config.RequestPublic")
     net.SendToServer()
-end)
+end
+
+hook.Add("InitPostEntity", "DFW.Config.RequestPublic", requestPublic)
 
 if DFW_GamemodeLoaded then
     timer.Simple(1, function()
         if not DFW or not DFW.Net then return end
-        Net.Start("Config.RequestPublic")
-        net.SendToServer()
+        requestPublic()
     end)
 end
