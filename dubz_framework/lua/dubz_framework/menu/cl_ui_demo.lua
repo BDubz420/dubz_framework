@@ -217,10 +217,69 @@ local function buildFeedback(page)
     })
 end
 
+local function buildMotion(page)
+    local presets = newCard(page, "Presets")
+    presets:Dock(TOP)
+    presets:SetTall(140)
+    presets:DockMargin(0, 0, 0, CARD_GAP)
+
+    local stage = newCard(page, "Stage")
+    stage:Dock(TOP)
+    stage:SetTall(170)
+
+    local area = vgui.Create("Panel", stage)
+    area:Dock(FILL)
+    area:DockMargin(0, 6, 0, 0)
+
+    local sample = vgui.Create("DFW.Card", area)
+    sample:SetSize(200, 40)
+    sample:SetPos(0, 0)
+
+    local caption = vgui.Create("DFW.Label", sample)
+    caption:Dock(FILL)
+    caption:DockMargin(14, 0, 0, 0)
+    caption:SetText("Sample panel")
+
+    local chips = {}
+
+    for index = 1, 5 do
+        local chip = vgui.Create("DFW.Card", area)
+        chip:SetSize(80, 32)
+        chip:SetPos((index - 1) * 88, 52)
+        chips[index] = chip
+    end
+
+    local drawer = vgui.Create("DFW.Drawer", area)
+    drawer:SetShare(0.45)
+
+    local drawerTitle = vgui.Create("DFW.Label", drawer:GetContent())
+    drawerTitle:Dock(TOP)
+    drawerTitle:SetStyle("heading")
+    drawerTitle:SetText("Drawer")
+
+    local drawerText = vgui.Create("DFW.Paragraph", drawer:GetContent())
+    drawerText:Dock(TOP)
+    drawerText:SetText("Slides over its parent. Click outside it, press its X, or use the buttons.")
+
+    addButtons(presets, "Single panel", {
+        {label = "Fade In", width = 100, click = function() DFW.Anim.FadeIn(sample) end},
+        {label = "Rise In", width = 100, click = function() DFW.Anim.RiseIn(sample) end},
+        {label = "Slide In", width = 100, click = function() DFW.Anim.SlideIn(sample, "left", {distance = 60}) end},
+        {label = "Shake", width = 100, click = function() DFW.Anim.Shake(sample) end}
+    })
+
+    addButtons(presets, "Group and drawer", {
+        {label = "Stagger", width = 100, click = function() DFW.Anim.Stagger(chips, "RiseIn") end},
+        {label = "Open drawer", width = 110, click = function() drawer:Open() end},
+        {label = "Close drawer", width = 110, click = function() drawer:Close() end}
+    })
+end
+
 local PAGES = {
     {id = "overview", label = "Overview", icon = "navigation/menu", build = buildOverview},
     {id = "controls", label = "Controls", icon = "actions/edit_square", build = buildControls},
-    {id = "feedback", label = "Feedback", icon = "communication/notifications", build = buildFeedback}
+    {id = "feedback", label = "Feedback", icon = "communication/notifications", build = buildFeedback},
+    {id = "motion", label = "Motion", icon = "navigation/unfold_more", build = buildMotion}
 }
 
 local function buildFooter(content)

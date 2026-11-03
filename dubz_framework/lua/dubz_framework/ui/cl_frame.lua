@@ -12,17 +12,20 @@ function PANEL:Init()
     self.CloseOnEscape = true
     self.Dragging = nil
 
-    self:ShowCloseButton(true)
+    self:ShowCloseButton(false)
     self:SetDraggable(false)
     if self.SetPaintShadow then self:SetPaintShadow(false) end
     if IsValid(self.lblTitle) then self.lblTitle:SetVisible(false) end
 
-    self:SetAlpha(0)
-    self:AlphaTo(255, 0.14, 0)
+    DFW.Anim.FadeIn(self, {duration = "fast"})
     self:DockPadding(12, self.HeaderHeight + 10, 12, 12)
 
     self.Content = vgui.Create("Panel", self)
     self.Content:Dock(FILL)
+
+    self.CloseButton = vgui.Create("DFW.CloseButton", self)
+    self.CloseButton:SetTarget(self)
+    self.CloseButton:AnchorTopRight(8, (self.HeaderHeight - 28) / 2)
 end
 
 function PANEL:SetTitle(title) self.Title = tostring(title or "") end
@@ -36,8 +39,12 @@ function PANEL:SetCompact(compact)
     if self.Compact then
         self:DockPadding(5, 29, 5, 5)
         self.Content:DockMargin(0, 0, 0, 0)
+        self.CloseButton:SetSize(18, 18)
+        self.CloseButton:AnchorTopRight(4, 3)
     else
         self:DockPadding(12, self.HeaderHeight + 10, 12, 12)
+        self.CloseButton:SetSize(28, 28)
+        self.CloseButton:AnchorTopRight(8, (self.HeaderHeight - 28) / 2)
     end
 end
 

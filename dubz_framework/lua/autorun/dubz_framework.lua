@@ -18,7 +18,7 @@ end
 
 DFW = {
     Name = "Dubz Framework",
-    Version = "0.4.1",
+    Version = "0.6.0",
     APIVersion = 1,
     Root = "dubz_framework",
     Ready = false,
@@ -34,7 +34,7 @@ local LOAD_ORDER = {
         "cl_network", "cl_collections"
     },
     ui = {
-        "cl_fonts", "cl_theme", "cl_anim", "cl_draw", "cl_icons", "cl_frame", "cl_button", "cl_inputs",
+        "cl_fonts", "cl_theme", "cl_anim", "cl_tween", "cl_motion", "cl_draw", "cl_icons", "cl_frame", "cl_button", "cl_close", "cl_drawer", "cl_inputs",
         "cl_popups", "cl_layout", "cl_overlays", "cl_game", "cl_items"
     },
     menu = {
@@ -177,6 +177,10 @@ DFW.Config.Register("dubz_core", {
     {key = "accent", label = "Accent Colour", type = "color", default = {r = 190, g = 86, b = 82, a = 255}, public = true, order = 30, group = "Appearance"},
     {key = "ui_sounds", label = "Interface Sounds", type = "bool", default = true, public = true, order = 40, group = "Interface",
         description = "Play a soft sound when hovering buttons."},
+    {key = "animations", label = "Interface Animations", type = "bool", default = true, public = true, order = 42, group = "Interface",
+        description = "Windows and panels fade and slide in. Turn off to make every animation instant."},
+    {key = "animation_speed", label = "Animation Speed", type = "number", default = 1, min = 0.5, max = 2, decimals = 2, public = true, order = 44, group = "Interface",
+        description = "Multiplier for every animation. 2 is twice as fast, 0.5 is half as fast."},
     {key = "debug", label = "Debug Logging", type = "bool", default = false, order = 50, group = "Diagnostics",
         description = "Print extra framework diagnostics to the console."}
 })
